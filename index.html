@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Footy — Can You Guess Their Level?</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Footy — Guess Their Level</title>
   <meta name="description" content="Upload your clips. Let the world guess your level. The social guessing game for ballers.">
-  <meta property="og:title" content="Footy — Can You Guess Their Level?">
+  <meta property="og:title" content="Footy — Guess Their Level">
   <meta property="og:description" content="Upload your clips. Let the world guess your level. Rec, academy, semi-pro, or pro?">
-  <meta property="og:type" content="website">
-  <meta name="twitter:card" content="summary_large_image">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,16 +19,8 @@
       theme: {
         extend: {
           colors: {
-            lime: {
-              400: '#a3e635',
-              500: '#84cc16',
-            },
-            dark: {
-              900: '#0a0a0a',
-              800: '#141414',
-              700: '#1e1e1e',
-              600: '#2a2a2a',
-            }
+            lime: { 400: '#a3e635', 500: '#84cc16' },
+            dark: { 900: '#0a0a0a', 800: '#141414', 700: '#1e1e1e', 600: '#2a2a2a' }
           },
           fontFamily: {
             display: ['Space Grotesk', 'sans-serif'],
@@ -40,10 +32,14 @@
   </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body { font-family: 'Inter', sans-serif; background: #0a0a0a; color: #fff; overflow-x: hidden; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+    }
 
-    /* Gradient text */
+    /* ---- Gradient text ---- */
     .gradient-text {
       background: linear-gradient(135deg, #a3e635 0%, #22d3ee 100%);
       -webkit-background-clip: text;
@@ -51,670 +47,530 @@
       background-clip: text;
     }
 
-    /* Glow effect */
-    .glow {
-      box-shadow: 0 0 40px rgba(163, 230, 53, 0.15), 0 0 80px rgba(163, 230, 53, 0.05);
-    }
-
-    .glow-text {
-      text-shadow: 0 0 30px rgba(163, 230, 53, 0.3);
-    }
-
-    /* Card hover */
-    .card-hover {
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
-    }
-    .card-hover:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 0 30px rgba(163, 230, 53, 0.1);
-    }
-
-    /* Level pill animation */
-    .level-pill {
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-    @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 10px rgba(163, 230, 53, 0.3); }
-      50% { box-shadow: 0 0 25px rgba(163, 230, 53, 0.6); }
-    }
-
-    /* Slide up animation */
-    .slide-up {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-    .slide-up.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* Floating animation */
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-    .float { animation: float 3s ease-in-out infinite; }
-
-    /* Phone mockup */
-    .phone-mockup {
-      background: #1e1e1e;
-      border-radius: 2.5rem;
-      border: 3px solid #2a2a2a;
-      padding: 0.75rem;
+    /* ---- App layout ---- */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      max-width: 480px;
+      margin: 0 auto;
       position: relative;
     }
-    .phone-mockup::before {
-      content: '';
-      position: absolute;
-      top: 0.75rem;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 80px;
-      height: 24px;
-      background: #0a0a0a;
-      border-radius: 0 0 1rem 1rem;
-      z-index: 10;
-    }
-    .phone-screen {
-      border-radius: 2rem;
-      overflow: hidden;
-      background: #141414;
-      aspect-ratio: 9/16;
-      position: relative;
+    @media (min-width: 640px) {
+      #app { border-left: 1px solid #1e1e1e; border-right: 1px solid #1e1e1e; }
     }
 
-    /* Slider guess UI */
-    .guess-slider {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: linear-gradient(90deg, #a3e635, #22d3ee);
-      outline: none;
-    }
-    .guess-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #fff;
-      cursor: pointer;
-      box-shadow: 0 0 10px rgba(163, 230, 53, 0.5);
-    }
-
-    /* Navbar blur */
-    .nav-blur {
+    #app-header {
+      flex-shrink: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
-      background: rgba(10, 10, 10, 0.8);
+      background: rgba(10,10,10,0.9);
+      z-index: 40;
     }
 
-    /* CTA button shimmer */
-    .btn-primary {
+    #view-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    #view-container::-webkit-scrollbar { display: none; }
+    #view-container { scrollbar-width: none; }
+
+    #tab-bar {
+      flex-shrink: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(10,10,10,0.95);
+      z-index: 40;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    .tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 6px 12px;
+      border: none;
+      background: none;
+      color: #6b7280;
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn.active { color: #a3e635; }
+    .tab-btn svg { width: 24px; height: 24px; }
+
+    /* ---- Clip card ---- */
+    .clip-card {
+      background: #141414;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 16px;
+      overflow: hidden;
+      margin: 12px;
+      transition: transform 0.2s;
+    }
+
+    .clip-video-area {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 9/12;
+      background: #0a0a0a;
+      overflow: hidden;
+    }
+    .clip-video-area video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Demo clip animated placeholder */
+    .demo-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       position: relative;
       overflow: hidden;
     }
-    .btn-primary::after {
+    .demo-placeholder::before {
       content: '';
       position: absolute;
-      top: -50%;
-      left: -60%;
-      width: 40%;
-      height: 200%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-      transform: rotate(25deg);
-      animation: shimmer 3s ease-in-out infinite;
+      inset: 0;
+      opacity: 0.15;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(163,230,53,0.1) 40px, rgba(163,230,53,0.1) 41px),
+        repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(163,230,53,0.1) 40px, rgba(163,230,53,0.1) 41px);
+      animation: field-scroll 8s linear infinite;
     }
-    @keyframes shimmer {
-      0% { left: -60%; }
-      100% { left: 120%; }
+    @keyframes field-scroll {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(41px); }
+    }
+    .demo-placeholder .demo-emoji {
+      font-size: 64px;
+      animation: demo-bounce 2s ease-in-out infinite;
+      position: relative;
+      z-index: 1;
+    }
+    @keyframes demo-bounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-12px) scale(1.05); }
+    }
+    .demo-placeholder .demo-label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 12px;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
     }
 
-    /* Stagger children */
-    .stagger > * { transition-delay: calc(var(--i, 0) * 0.1s); }
+    /* Guess pills */
+    .guess-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 14px;
+      border-radius: 9999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+      color: #d1d5db;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .guess-pill:hover { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); }
+    .guess-pill.selected {
+      border-color: rgba(163,230,53,0.5);
+      background: rgba(163,230,53,0.15);
+      color: #a3e635;
+    }
+    .guess-pill .pill-emoji { font-size: 14px; }
 
-    /* Grid background */
-    .grid-bg {
-      background-image:
-        linear-gradient(rgba(163, 230, 53, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(163, 230, 53, 0.03) 1px, transparent 1px);
-      background-size: 60px 60px;
+    /* Lock-in button */
+    .lock-in-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 9999px;
+      border: none;
+      background: #84cc16;
+      color: #000;
+      font-weight: 700;
+      font-size: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .lock-in-btn:disabled {
+      background: #2a2a2a;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+    .lock-in-btn:not(:disabled):hover { background: #a3e635; }
+
+    /* Reveal animation */
+    .reveal-container {
+      animation: reveal-slide 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes reveal-slide {
+      0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
     }
 
-    /* Mobile menu */
-    .mobile-menu {
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
+    .reveal-correct {
+      animation: flash-green 0.6s ease;
     }
-    .mobile-menu.open {
-      transform: translateX(0);
+    @keyframes flash-green {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 40px rgba(163,230,53,0.4); }
     }
+
+    .reveal-wrong {
+      animation: flash-red 0.6s ease;
+    }
+    @keyframes flash-red {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 40px rgba(239,68,68,0.4); }
+    }
+
+    /* Vote bar */
+    .vote-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* XP popup */
+    .xp-popup {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      animation: xp-float 1.5s ease forwards;
+      pointer-events: none;
+    }
+    @keyframes xp-float {
+      0% { opacity: 0; transform: translateX(-50%) translateY(10px) scale(0.8); }
+      20% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      80% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.9); }
+    }
+
+    /* Upload area */
+    .upload-dropzone {
+      border: 2px dashed rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 40px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .upload-dropzone:hover, .upload-dropzone.drag-over {
+      border-color: rgba(163,230,53,0.4);
+      background: rgba(163,230,53,0.03);
+    }
+    .upload-dropzone.has-file {
+      border-color: rgba(163,230,53,0.3);
+      border-style: solid;
+      padding: 12px;
+    }
+
+    /* Form elements */
+    .form-input {
+      width: 100%;
+      background: #1e1e1e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: rgba(163,230,53,0.5); }
+    .form-input::placeholder { color: #6b7280; }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Level selector in upload */
+    .level-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #1e1e1e;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .level-option:hover { border-color: rgba(255,255,255,0.15); }
+    .level-option.selected {
+      border-color: rgba(163,230,53,0.5);
+      background: rgba(163,230,53,0.08);
+    }
+    .level-option .lo-emoji { font-size: 20px; }
+    .level-option .lo-label { font-weight: 600; font-size: 14px; }
+    .level-option .lo-desc { font-size: 12px; color: #6b7280; }
+    .level-option .lo-check {
+      margin-left: auto;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .level-option.selected .lo-check {
+      border-color: #a3e635;
+      background: #a3e635;
+    }
+
+    /* Leaderboard */
+    .lb-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      transition: background 0.2s;
+    }
+    .lb-row:hover { background: rgba(255,255,255,0.02); }
+    .lb-rank {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .lb-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* Stats grid */
+    .stat-card {
+      background: #141414;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-value {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 24px;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
+    }
+
+    /* Onboarding modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-content {
+      background: #141414;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 32px 24px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      animation: modal-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modal-in {
+      0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Confetti particles */
+    .confetti {
+      position: fixed;
+      pointer-events: none;
+      z-index: 300;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      animation: confetti-fall 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+    }
+    @keyframes confetti-fall {
+      0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+      100% { transform: translateY(200px) rotate(720deg) scale(0); opacity: 0; }
+    }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    /* Smooth view transitions */
+    .view-enter {
+      animation: view-fade-in 0.25s ease;
+    }
+    @keyframes view-fade-in {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* Play button overlay */
+    .play-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .play-overlay.hidden { opacity: 0; pointer-events: none; }
+    .play-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .play-icon svg { width: 24px; height: 24px; fill: #0a0a0a; margin-left: 3px; }
   </style>
 </head>
-<body class="grid-bg">
+<body>
 
-  <!-- ============ NAVBAR ============ -->
-  <nav class="nav-blur fixed top-0 w-full z-50 border-b border-white/5">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-      <a href="#" class="flex items-center gap-2">
-        <span class="text-2xl">⚽</span>
-        <span class="font-display font-bold text-xl tracking-tight">footy</span>
-      </a>
-      <div class="hidden md:flex items-center gap-8 text-sm text-gray-400">
-        <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
-        <a href="#features" class="hover:text-white transition-colors">Features</a>
-        <a href="#levels" class="hover:text-white transition-colors">Levels</a>
-        <a href="#waitlist" class="bg-lime-500 hover:bg-lime-400 text-black font-semibold px-5 py-2 rounded-full transition-colors">
-          Get Early Access
-        </a>
-      </div>
-      <button id="menu-toggle" class="md:hidden text-white p-2" aria-label="Toggle menu">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-        </svg>
-      </button>
-    </div>
-  </nav>
-
-  <!-- Mobile menu -->
-  <div id="mobile-menu" class="mobile-menu fixed inset-y-0 right-0 w-64 bg-dark-800 z-50 p-6 pt-20 md:hidden border-l border-white/5">
-    <button id="menu-close" class="absolute top-5 right-5 text-white" aria-label="Close menu">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-      </svg>
-    </button>
-    <div class="flex flex-col gap-6">
-      <a href="#how-it-works" class="text-gray-300 hover:text-white transition-colors text-lg">How It Works</a>
-      <a href="#features" class="text-gray-300 hover:text-white transition-colors text-lg">Features</a>
-      <a href="#levels" class="text-gray-300 hover:text-white transition-colors text-lg">Levels</a>
-      <a href="#waitlist" class="bg-lime-500 hover:bg-lime-400 text-black font-semibold px-5 py-3 rounded-full text-center transition-colors mt-4">
-        Get Early Access
-      </a>
+  <!-- ===== Onboarding Modal ===== -->
+  <div id="onboarding-modal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="text-5xl mb-4">⚽</div>
+      <h2 class="font-display font-bold text-2xl mb-2">Welcome to Footy</h2>
+      <p class="text-gray-400 text-sm mb-6">Pick a name. Start guessing. Upload your clips.</p>
+      <input
+        type="text"
+        id="onboard-name"
+        placeholder="Enter your name"
+        maxlength="20"
+        class="form-input mb-4 text-center"
+        autocomplete="off"
+      >
+      <button id="onboard-submit" class="lock-in-btn" disabled>Let's Go</button>
     </div>
   </div>
-  <div id="menu-overlay" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden"></div>
 
-  <!-- ============ HERO ============ -->
-  <section class="relative min-h-screen flex items-center pt-16">
-    <!-- Background gradient orbs -->
-    <div class="absolute top-20 left-1/4 w-96 h-96 bg-lime-500/10 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute bottom-20 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 w-full">
-      <div class="grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-        <!-- Left: Copy -->
-        <div class="text-center lg:text-left pt-8 lg:pt-0">
-          <div class="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-sm text-gray-400 mb-6">
-            <span class="w-2 h-2 bg-lime-400 rounded-full animate-pulse"></span>
-            Early access — launching soon
-          </div>
-
-          <h1 class="font-display font-bold text-4xl sm:text-5xl lg:text-6xl leading-tight tracking-tight mb-6">
-            Think you can
-            <span class="gradient-text glow-text"> guess their level?</span>
-          </h1>
-
-          <p class="text-gray-400 text-lg sm:text-xl leading-relaxed mb-8 max-w-lg mx-auto lg:mx-0">
-            Watch clips. Guess if they're rec, academy, semi-pro, or pro. Get it right and climb the leaderboard. Get it wrong and take the L.
-          </p>
-
-          <div class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-8">
-            <a href="#waitlist" class="btn-primary bg-lime-500 hover:bg-lime-400 text-black font-bold px-8 py-4 rounded-full text-lg transition-colors inline-flex items-center justify-center gap-2">
-              Join the Waitlist
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
-            </a>
-            <a href="#how-it-works" class="border border-white/20 hover:border-white/40 text-white font-semibold px-8 py-4 rounded-full text-lg transition-colors inline-flex items-center justify-center gap-2">
-              See How It Works
-            </a>
-          </div>
-
-          <div class="flex items-center gap-4 justify-center lg:justify-start text-sm text-gray-500">
-            <div class="flex -space-x-2">
-              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-lime-400 to-green-600 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-black">R</div>
-              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-white">M</div>
-              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-600 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-white">J</div>
-              <div class="w-8 h-8 rounded-full bg-gradient-to-br from-orange-400 to-red-600 border-2 border-dark-900 flex items-center justify-center text-xs font-bold text-white">A</div>
-            </div>
-            <span>2,400+ ballers on the waitlist</span>
-          </div>
+  <!-- ===== App Shell ===== -->
+  <div id="app">
+    <!-- Header -->
+    <header id="app-header">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">⚽</span>
+        <span class="font-display font-bold text-lg tracking-tight">footy</span>
+      </div>
+      <div id="header-right" class="flex items-center gap-3">
+        <div id="xp-display" class="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-1">
+          <span class="text-sm">🔥</span>
+          <span class="text-xs font-bold text-lime-400" id="xp-count">0</span>
+          <span class="text-xs text-gray-500">XP</span>
         </div>
-
-        <!-- Right: Phone mockup -->
-        <div class="flex justify-center lg:justify-end">
-          <div class="phone-mockup w-[280px] sm:w-[300px] float glow">
-            <div class="phone-screen flex flex-col">
-              <!-- Fake video clip area -->
-              <div class="flex-1 bg-gradient-to-b from-green-900/40 to-dark-800 relative flex items-end p-4">
-                <!-- Fake field overlay -->
-                <div class="absolute inset-0 flex items-center justify-center opacity-20">
-                  <svg class="w-32 h-32" viewBox="0 0 100 100" fill="none" stroke="#a3e635" stroke-width="1">
-                    <circle cx="50" cy="50" r="20"/>
-                    <rect x="5" y="5" width="90" height="90" rx="2"/>
-                    <line x1="50" y1="5" x2="50" y2="95"/>
-                  </svg>
-                </div>
-
-                <div class="relative z-10 w-full">
-                  <div class="flex items-center gap-2 mb-3">
-                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500"></div>
-                    <div>
-                      <p class="text-white text-xs font-semibold">@tekdribbler</p>
-                      <p class="text-gray-400 text-[10px]">12s clip</p>
-                    </div>
-                  </div>
-
-                  <!-- Guess UI -->
-                  <div class="bg-black/60 backdrop-blur-md rounded-2xl p-3 border border-white/10">
-                    <p class="text-white text-xs font-semibold mb-2">What level is this player?</p>
-                    <div class="flex flex-wrap gap-1.5 mb-2">
-                      <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] text-gray-300 border border-white/5">Rec</span>
-                      <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] text-gray-300 border border-white/5">High School</span>
-                      <span class="level-pill px-2.5 py-1 rounded-full bg-lime-500/20 text-[10px] text-lime-400 border border-lime-500/30 font-medium">Academy</span>
-                      <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] text-gray-300 border border-white/5">Semi-Pro</span>
-                      <span class="px-2.5 py-1 rounded-full bg-white/10 text-[10px] text-gray-300 border border-white/5">Pro</span>
-                    </div>
-                    <button class="w-full bg-lime-500 text-black text-xs font-bold py-2 rounded-full">
-                      Lock In Guess
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div id="streak-display" class="flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-3 py-1">
+          <span class="text-sm">⚡</span>
+          <span class="text-xs font-bold text-cyan-400" id="streak-count">0</span>
         </div>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <!-- ============ SOCIAL PROOF BAR ============ -->
-  <section class="border-y border-white/5 bg-white/[0.02]">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-        <div class="slide-up">
-          <p class="font-display font-bold text-2xl sm:text-3xl gradient-text">10K+</p>
-          <p class="text-gray-500 text-sm mt-1">Clips uploaded</p>
-        </div>
-        <div class="slide-up">
-          <p class="font-display font-bold text-2xl sm:text-3xl gradient-text">250K+</p>
-          <p class="text-gray-500 text-sm mt-1">Guesses made</p>
-        </div>
-        <div class="slide-up">
-          <p class="font-display font-bold text-2xl sm:text-3xl gradient-text">38%</p>
-          <p class="text-gray-500 text-sm mt-1">Average accuracy</p>
-        </div>
-        <div class="slide-up">
-          <p class="font-display font-bold text-2xl sm:text-3xl gradient-text">6</p>
-          <p class="text-gray-500 text-sm mt-1">Levels to guess</p>
-        </div>
-      </div>
-    </div>
-  </section>
+    <!-- Main View -->
+    <div id="view-container"></div>
 
-  <!-- ============ HOW IT WORKS ============ -->
-  <section id="how-it-works" class="py-20 sm:py-28">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-16 slide-up">
-        <p class="text-lime-400 font-semibold text-sm uppercase tracking-widest mb-3">How It Works</p>
-        <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight">
-          Three steps. Endless debates.
-        </h2>
-      </div>
+    <!-- Bottom Tab Bar -->
+    <nav id="tab-bar">
+      <button class="tab-btn active" data-view="feed" aria-label="Feed">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/>
+        </svg>
+        <span>Feed</span>
+      </button>
+      <button class="tab-btn" data-view="upload" aria-label="Upload">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+        </svg>
+        <span>Upload</span>
+      </button>
+      <button class="tab-btn" data-view="leaderboard" aria-label="Leaderboard">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-4.5A3.375 3.375 0 0012.75 10.5h-.75a.75.75 0 01-.75-.75V6.75a3 3 0 00-3-3H6a3 3 0 00-3 3v3a.75.75 0 01-.75.75H1.5a3.375 3.375 0 00-3.375 3.375v4.5"/>
+        </svg>
+        <span>Board</span>
+      </button>
+      <button class="tab-btn" data-view="profile" aria-label="Profile">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+        </svg>
+        <span>Profile</span>
+      </button>
+    </nav>
+  </div>
 
-      <div class="grid md:grid-cols-3 gap-6 stagger">
-        <!-- Step 1 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-8 text-center slide-up" style="--i:0">
-          <div class="w-16 h-16 bg-lime-500/10 border border-lime-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg class="w-8 h-8 text-lime-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-            </svg>
-          </div>
-          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-lime-500 text-black font-bold text-sm mb-4">1</div>
-          <h3 class="font-display font-bold text-xl mb-3">Upload your clip</h3>
-          <p class="text-gray-400 leading-relaxed">Post a 10-30 second clip of you playing. Skills, match footage, training — anything goes.</p>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-8 text-center slide-up" style="--i:1">
-          <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-cyan-500 text-black font-bold text-sm mb-4">2</div>
-          <h3 class="font-display font-bold text-xl mb-3">The world guesses</h3>
-          <p class="text-gray-400 leading-relaxed">Other players watch and pick your level: rec, high school, academy, college, semi-pro, or pro.</p>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-8 text-center slide-up" style="--i:2">
-          <div class="w-16 h-16 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-          </div>
-          <div class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-purple-500 text-white font-bold text-sm mb-4">3</div>
-          <h3 class="font-display font-bold text-xl mb-3">The reveal hits</h3>
-          <p class="text-gray-400 leading-relaxed">After guessing, the player's real level drops. Were you right? Or did you just get exposed?</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ FEATURES ============ -->
-  <section id="features" class="py-20 sm:py-28 bg-white/[0.01]">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-16 slide-up">
-        <p class="text-lime-400 font-semibold text-sm uppercase tracking-widest mb-3">Features</p>
-        <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight">
-          Built for ballers, not browsers.
-        </h2>
-      </div>
-
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <!-- Feature 1 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">🎯</div>
-          <h3 class="font-display font-bold text-lg mb-2">Guess the Level</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">The core loop. Watch a clip, lock in your guess, see the reveal. Simple. Addictive. Humbling.</p>
-        </div>
-
-        <!-- Feature 2 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">🏆</div>
-          <h3 class="font-display font-bold text-lg mb-2">Leaderboards</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">Climb the ranks with accurate guesses. Weekly, monthly, and all-time boards. Show off your football IQ.</p>
-        </div>
-
-        <!-- Feature 3 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">📱</div>
-          <h3 class="font-display font-bold text-lg mb-2">Clip Feed</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">Vertical scroll, short clips, instant guesses. Like your favorite app, but with actual football content.</p>
-        </div>
-
-        <!-- Feature 4 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">🔥</div>
-          <h3 class="font-display font-bold text-lg mb-2">Streaks & XP</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">Correct guesses build streaks. Earn XP, unlock badges, and level up your scout rating.</p>
-        </div>
-
-        <!-- Feature 5 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">💬</div>
-          <h3 class="font-display font-bold text-lg mb-2">Comments & Reactions</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">Drop your hot takes. React to clips. Debate whether that nutmeg was really academy-level.</p>
-        </div>
-
-        <!-- Feature 6 -->
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="text-3xl mb-4">📊</div>
-          <h3 class="font-display font-bold text-lg mb-2">Player Stats</h3>
-          <p class="text-gray-400 text-sm leading-relaxed">See how the crowd rated you. Track your guess accuracy. Compare with friends.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ LEVELS SECTION ============ -->
-  <section id="levels" class="py-20 sm:py-28">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-16 slide-up">
-        <p class="text-lime-400 font-semibold text-sm uppercase tracking-widest mb-3">The Levels</p>
-        <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight">
-          Rec or pro? You decide.
-        </h2>
-        <p class="text-gray-400 mt-4 text-lg max-w-2xl mx-auto">Every clip gets sorted. Every player has a level. The question is — can you tell the difference?</p>
-      </div>
-
-      <div class="flex flex-wrap justify-center gap-3 sm:gap-4 slide-up">
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">🏃</div>
-          <p class="font-display font-bold text-sm">Rec</p>
-          <p class="text-gray-500 text-xs mt-1">Weekend warriors</p>
-        </div>
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">🎒</div>
-          <p class="font-display font-bold text-sm">High School</p>
-          <p class="text-gray-500 text-xs mt-1">Varsity ballers</p>
-        </div>
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">⚡</div>
-          <p class="font-display font-bold text-sm">Academy</p>
-          <p class="text-gray-500 text-xs mt-1">MLS Next / DA</p>
-        </div>
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">🎓</div>
-          <p class="font-display font-bold text-sm">College</p>
-          <p class="text-gray-500 text-xs mt-1">D1 / D2 / D3</p>
-        </div>
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">💪</div>
-          <p class="font-display font-bold text-sm">Semi-Pro</p>
-          <p class="text-gray-500 text-xs mt-1">USL / NISA</p>
-        </div>
-        <div class="bg-dark-800 border border-white/10 rounded-2xl px-6 py-4 text-center card-hover">
-          <div class="text-2xl mb-1">👑</div>
-          <p class="font-display font-bold text-sm">Pro</p>
-          <p class="text-gray-500 text-xs mt-1">The real deal</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ SOCIAL PROOF / QUOTES ============ -->
-  <section class="py-20 sm:py-28 bg-white/[0.01]">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="text-center mb-16 slide-up">
-        <p class="text-lime-400 font-semibold text-sm uppercase tracking-widest mb-3">The Vibe</p>
-        <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight">
-          What players are saying
-        </h2>
-      </div>
-
-      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center font-bold text-sm">K</div>
-            <div>
-              <p class="font-semibold text-sm">@kingoftekkers</p>
-              <p class="text-gray-500 text-xs">Academy Player</p>
-            </div>
-          </div>
-          <p class="text-gray-300 text-sm leading-relaxed">"Posted my clip thinking everyone would guess academy. 60% said rec. Pain. But it made me want to post a better one."</p>
-        </div>
-
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center font-bold text-sm">S</div>
-            <div>
-              <p class="font-semibold text-sm">@soccermom_sarah</p>
-              <p class="text-gray-500 text-xs">Parent / Fan</p>
-            </div>
-          </div>
-          <p class="text-gray-300 text-sm leading-relaxed">"My son is obsessed. He watches clips for hours trying to beat his accuracy score. At least it's about football."</p>
-        </div>
-
-        <div class="card-hover bg-dark-800 border border-white/5 rounded-2xl p-6 slide-up">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center font-bold text-sm">D</div>
-            <div>
-              <p class="font-semibold text-sm">@d1commit</p>
-              <p class="text-gray-500 text-xs">College Player</p>
-            </div>
-          </div>
-          <p class="text-gray-300 text-sm leading-relaxed">"The reveal is so satisfying. Nothing better than watching a chat full of 'no way that's rec' after the level drops."</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ CTA / WAITLIST ============ -->
-  <section id="waitlist" class="py-20 sm:py-28 relative overflow-hidden">
-    <!-- Background effects -->
-    <div class="absolute inset-0 pointer-events-none">
-      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-lime-500/5 rounded-full blur-3xl"></div>
-    </div>
-
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 text-center relative z-10">
-      <div class="slide-up">
-        <div class="text-5xl mb-6">⚽</div>
-        <h2 class="font-display font-bold text-3xl sm:text-4xl lg:text-5xl tracking-tight mb-4">
-          Ready to prove your eye?
-        </h2>
-        <p class="text-gray-400 text-lg mb-10 max-w-lg mx-auto">
-          Footy is launching soon. Get on the list. Be first to guess, first to post, first to climb.
-        </p>
-
-        <!-- Waitlist form -->
-        <form id="waitlist-form" class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-6">
-          <input
-            type="email"
-            id="waitlist-email"
-            placeholder="Enter your email"
-            required
-            class="flex-1 bg-dark-700 border border-white/10 rounded-full px-6 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-lime-500/50 focus:ring-1 focus:ring-lime-500/50 transition-colors"
-          >
-          <button
-            type="submit"
-            class="btn-primary bg-lime-500 hover:bg-lime-400 text-black font-bold px-8 py-4 rounded-full transition-colors whitespace-nowrap"
-          >
-            I'm In
-          </button>
-        </form>
-
-        <p id="waitlist-success" class="text-lime-400 font-medium hidden">
-          You're on the list. We'll be in touch. ⚽
-        </p>
-
-        <p class="text-gray-600 text-sm">No spam. Just early access and updates.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ FOOTER ============ -->
-  <footer class="border-t border-white/5 py-12">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
-        <div class="flex items-center gap-2">
-          <span class="text-xl">⚽</span>
-          <span class="font-display font-bold text-lg tracking-tight">footy</span>
-        </div>
-
-        <div class="flex items-center gap-6 text-sm text-gray-500">
-          <a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a>
-          <a href="#features" class="hover:text-white transition-colors">Features</a>
-          <a href="#waitlist" class="hover:text-white transition-colors">Waitlist</a>
-        </div>
-
-        <div class="flex items-center gap-4">
-          <!-- Twitter/X -->
-          <a href="#" class="text-gray-500 hover:text-white transition-colors" aria-label="Twitter">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-          </a>
-          <!-- Instagram -->
-          <a href="#" class="text-gray-500 hover:text-white transition-colors" aria-label="Instagram">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-          </a>
-          <!-- TikTok -->
-          <a href="#" class="text-gray-500 hover:text-white transition-colors" aria-label="TikTok">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 0010.86 4.48v-7.15a8.16 8.16 0 005.58 2.2V11.3a4.85 4.85 0 01-1.42-.23 4.8 4.8 0 01-1.58-.88v.01z"/></svg>
-          </a>
-        </div>
-      </div>
-
-      <div class="mt-8 pt-8 border-t border-white/5 text-center">
-        <p class="text-gray-600 text-sm">&copy; 2025 Footy. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- ============ JAVASCRIPT ============ -->
-  <script>
-    // Mobile menu toggle
-    const menuToggle = document.getElementById('menu-toggle');
-    const mobileMenu = document.getElementById('mobile-menu');
-    const menuClose = document.getElementById('menu-close');
-    const menuOverlay = document.getElementById('menu-overlay');
-
-    function openMenu() {
-      mobileMenu.classList.add('open');
-      menuOverlay.classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-    }
-
-    function closeMenu() {
-      mobileMenu.classList.remove('open');
-      menuOverlay.classList.add('hidden');
-      document.body.style.overflow = '';
-    }
-
-    menuToggle.addEventListener('click', openMenu);
-    menuClose.addEventListener('click', closeMenu);
-    menuOverlay.addEventListener('click', closeMenu);
-
-    // Close menu on link click
-    mobileMenu.querySelectorAll('a').forEach(link => {
-      link.addEventListener('click', closeMenu);
-    });
-
-    // Waitlist form
-    const waitlistForm = document.getElementById('waitlist-form');
-    const waitlistSuccess = document.getElementById('waitlist-success');
-
-    waitlistForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      const email = document.getElementById('waitlist-email').value;
-
-      // Store in localStorage as a simple placeholder
-      const waitlist = JSON.parse(localStorage.getItem('footy_waitlist') || '[]');
-      waitlist.push({ email, timestamp: new Date().toISOString() });
-      localStorage.setItem('footy_waitlist', JSON.stringify(waitlist));
-
-      // Show success
-      waitlistForm.classList.add('hidden');
-      waitlistSuccess.classList.remove('hidden');
-    });
-
-    // Intersection Observer for scroll animations
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-          }
-        });
-      },
-      { threshold: 0.1, rootMargin: '0px 0px -50px 0px' }
-    );
-
-    document.querySelectorAll('.slide-up').forEach((el) => {
-      observer.observe(el);
-    });
-
-    // Smooth scroll for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function(e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
-    });
-
-    // Navbar background on scroll
-    const nav = document.querySelector('nav');
-    window.addEventListener('scroll', () => {
-      if (window.scrollY > 20) {
-        nav.classList.add('border-b', 'border-white/10');
-      } else {
-        nav.classList.remove('border-white/10');
-      }
-    });
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
