@@ -940,28 +940,37 @@ function attachUploadListeners(container) {
       const clipId = 'clip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
       const blob = new Blob([await selectedFile.arrayBuffer()], { type: selectedFile.type });
 
-      // Upload video to Firebase Storage with progress
+      // Upload video to Firebase Storage with progress + timeout
       let videoUrl = null;
       try {
         const storageRef = storage.ref(`clips/${clipId}/video`);
         const uploadTask = storageRef.put(blob);
 
-        await new Promise((resolve, reject) => {
+        const storageUpload = new Promise((resolve, reject) => {
           uploadTask.on('state_changed',
             (snapshot) => {
               const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
               submitBtn.textContent = `Uploading... ${progress}%`;
             },
-            reject,
-            resolve
+            (err) => reject(err),
+            () => resolve()
           );
         });
 
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => {
+            uploadTask.cancel();
+            reject(new Error('Upload timed out'));
+          }, 60000)
+        );
+
+        await Promise.race([storageUpload, timeout]);
         videoUrl = await uploadTask.snapshot.ref.getDownloadURL();
       } catch (storageErr) {
-        console.error('Video upload to Storage failed:', storageErr);
-        // Continue without video — clip still gets saved with metadata
+        console.warn('Video upload skipped:', storageErr.message || storageErr);
       }
+
+      submitBtn.textContent = 'Saving...';
 
       const clip = {
         id: clipId,
@@ -978,7 +987,6 @@ function attachUploadListeners(container) {
         clip.videoUrl = videoUrl;
       }
 
-      submitBtn.textContent = 'Saving...';
       await db.collection('clips').doc(clipId).set(clip);
       await loadClips();
 
