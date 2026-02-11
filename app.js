@@ -1,6 +1,6 @@
 // ============================================================
 // FOOTY — Guess Their Level
-// Full client-side SPA with IndexedDB video storage
+// Firebase-powered social guessing game
 // ============================================================
 
 // ---- Constants ----
@@ -87,11 +87,9 @@ function generateFakeGuesses(actualLevel, count) {
   const weights = {};
   LEVELS.forEach(l => { weights[l.id] = 0.05; });
   weights[actualLevel] = 0.35;
-  // Add weight to adjacent levels
   const idx = LEVELS.findIndex(l => l.id === actualLevel);
   if (idx > 0) weights[LEVELS[idx - 1].id] = 0.2;
   if (idx < LEVELS.length - 1) weights[LEVELS[idx + 1].id] = 0.2;
-  // Normalize
   const total = Object.values(weights).reduce((a, b) => a + b, 0);
   Object.keys(weights).forEach(k => { weights[k] /= total; });
 
@@ -109,87 +107,80 @@ function generateFakeGuesses(actualLevel, count) {
   return log;
 }
 
-// ---- IndexedDB ----
-const DB_NAME = 'footy_db';
-const DB_VERSION = 1;
+// ---- Firebase ----
+const firebaseConfig = {
+  apiKey: "AIzaSyDe5RHV5VBNL875PJxErY3tnSjjMydpcII",
+  authDomain: "footy-d9312.firebaseapp.com",
+  projectId: "footy-d9312",
+  storageBucket: "footy-d9312.firebasestorage.app",
+  messagingSenderId: "496026308406",
+  appId: "1:496026308406:web:5b28b109c801ddbdf56d97",
+  measurementId: "G-N6RE2D6N7G"
+};
 
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onerror = () => reject(req.error);
-    req.onsuccess = () => resolve(req.result);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('clips')) {
-        db.createObjectStore('clips', { keyPath: 'id' });
-      }
-    };
-  });
-}
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-async function dbPut(clip) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('clips', 'readwrite');
-    tx.objectStore('clips').put(clip);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function dbGetAll() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('clips', 'readonly');
-    const req = tx.objectStore('clips').getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbGet(id) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('clips', 'readonly');
-    const req = tx.objectStore('clips').get(id);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function dbDelete(id) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction('clips', 'readwrite');
-    tx.objectStore('clips').delete(id);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+// ---- User ID (persistent local identifier) ----
+function getOrCreateUserId() {
+  let uid = localStorage.getItem('footy_userId');
+  if (!uid) {
+    uid = 'user-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    localStorage.setItem('footy_userId', uid);
+  }
+  return uid;
 }
 
 // ---- State ----
 let state = {
   currentView: 'feed',
+  userId: null,
   user: null,
-  clips: [],        // merged demo + user clips
-  userClips: [],     // from IndexedDB
-  objectURLs: {},    // clipId -> objectURL for video blobs
+  clips: [],
 };
 
-function loadUser() {
-  const saved = localStorage.getItem('footy_user');
-  if (saved) {
-    state.user = JSON.parse(saved);
-    return true;
+// ---- User Management ----
+async function loadUser() {
+  state.userId = getOrCreateUserId();
+
+  try {
+    const doc = await db.collection('users').doc(state.userId).get();
+    if (doc.exists) {
+      state.user = doc.data();
+      return true;
+    }
+  } catch (e) {
+    console.error('Failed to load user from Firestore:', e);
   }
+
+  // Migrate legacy localStorage user data if present
+  const legacy = localStorage.getItem('footy_user');
+  if (legacy) {
+    try {
+      state.user = JSON.parse(legacy);
+      await saveUser();
+      localStorage.removeItem('footy_user');
+      return true;
+    } catch (e) {
+      console.error('Failed to migrate legacy user:', e);
+    }
+  }
+
   return false;
 }
 
-function saveUser() {
-  localStorage.setItem('footy_user', JSON.stringify(state.user));
+async function saveUser() {
+  if (!state.user || !state.userId) return;
+  try {
+    await db.collection('users').doc(state.userId).set(state.user);
+  } catch (e) {
+    console.error('Failed to save user:', e);
+  }
 }
 
-function createUser(name) {
+async function createUser(name) {
+  state.userId = getOrCreateUserId();
   state.user = {
     name: name.trim(),
     xp: 0,
@@ -197,48 +188,58 @@ function createUser(name) {
     bestStreak: 0,
     totalGuesses: 0,
     correctGuesses: 0,
-    guessedClips: {},  // clipId -> guessedLevel
+    guessedClips: {},
     createdAt: Date.now(),
   };
-  saveUser();
+  await saveUser();
 }
 
 // ---- Clip Management ----
 async function loadClips() {
-  // Revoke old object URLs
-  Object.values(state.objectURLs).forEach(url => URL.revokeObjectURL(url));
-  state.objectURLs = {};
+  try {
+    const snapshot = await db.collection('clips')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .get();
 
-  state.userClips = await dbGetAll();
-
-  // Create object URLs for user clips with video blobs
-  state.userClips.forEach(clip => {
-    if (clip.videoBlob) {
-      state.objectURLs[clip.id] = URL.createObjectURL(clip.videoBlob);
-    }
-  });
-
-  // Merge: user clips first (newest), then demos
-  const user = [...state.userClips].sort((a, b) => b.timestamp - a.timestamp);
-  state.clips = [...user, ...DEMO_CLIPS];
+    const firestoreClips = [];
+    snapshot.forEach(doc => {
+      firestoreClips.push({ id: doc.id, ...doc.data() });
+    });
+    state.clips = [...firestoreClips, ...DEMO_CLIPS];
+  } catch (e) {
+    console.error('Failed to load clips from Firestore:', e);
+    state.clips = [...DEMO_CLIPS];
+  }
 }
 
 async function saveClip(clipData) {
-  await dbPut(clipData);
+  // Upload video to Firebase Storage if present
+  if (clipData.videoBlob) {
+    const storageRef = storage.ref(`clips/${clipData.id}/video`);
+    const uploadSnapshot = await storageRef.put(clipData.videoBlob);
+    clipData.videoUrl = await uploadSnapshot.ref.getDownloadURL();
+    delete clipData.videoBlob;
+  }
+
+  await db.collection('clips').doc(clipData.id).set(clipData);
   await loadClips();
 }
 
 async function deleteClip(clipId) {
-  if (state.objectURLs[clipId]) {
-    URL.revokeObjectURL(state.objectURLs[clipId]);
-    delete state.objectURLs[clipId];
+  try {
+    await storage.ref(`clips/${clipId}/video`).delete();
+  } catch (e) {
+    // Video may not exist in Storage — that's fine
   }
-  await dbDelete(clipId);
-  // Remove from guessedClips
+
+  await db.collection('clips').doc(clipId).delete();
+
   if (state.user && state.user.guessedClips[clipId]) {
     delete state.user.guessedClips[clipId];
     saveUser();
   }
+
   await loadClips();
 }
 
@@ -257,11 +258,10 @@ function submitGuess(clipId, guessedLevel) {
 
   const correct = guessedLevel === clip.level;
 
-  // Add to clip's guess log
+  // Update local state immediately for responsive UI
   if (!clip.guessLog) clip.guessLog = [];
   clip.guessLog.push(guessedLevel);
 
-  // Update user stats
   state.user.totalGuesses++;
   state.user.guessedClips[clipId] = guessedLevel;
 
@@ -273,12 +273,20 @@ function submitGuess(clipId, guessedLevel) {
     }
     const xpGain = 10 + (state.user.streak - 1) * 2;
     state.user.xp += xpGain;
-    saveUser();
+    saveUser(); // fire-and-forget
     updateHeaderStats();
 
-    // Save updated clip if it's a user clip
+    // Sync guess to Firestore in background
     if (clip.type !== 'demo') {
-      dbPut(clip);
+      const clipRef = db.collection('clips').doc(clipId);
+      db.runTransaction(async (tx) => {
+        const doc = await tx.get(clipRef);
+        if (doc.exists) {
+          const log = doc.data().guessLog || [];
+          log.push(guessedLevel);
+          tx.update(clipRef, { guessLog: log });
+        }
+      }).catch(e => console.error('Failed to sync guess:', e));
     }
 
     return { correct: true, xpGain, streak: state.user.streak };
@@ -288,7 +296,15 @@ function submitGuess(clipId, guessedLevel) {
     updateHeaderStats();
 
     if (clip.type !== 'demo') {
-      dbPut(clip);
+      const clipRef = db.collection('clips').doc(clipId);
+      db.runTransaction(async (tx) => {
+        const doc = await tx.get(clipRef);
+        if (doc.exists) {
+          const log = doc.data().guessLog || [];
+          log.push(guessedLevel);
+          tx.update(clipRef, { guessLog: log });
+        }
+      }).catch(e => console.error('Failed to sync guess:', e));
     }
 
     return { correct: false, xpGain: 0, streak: 0 };
@@ -369,7 +385,6 @@ function escapeHtml(text) {
 function navigate(view) {
   state.currentView = view;
 
-  // Update tab bar
   $$('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
@@ -411,7 +426,6 @@ function renderFeed(container) {
 
   let html = '<div class="view-enter" style="padding-bottom:20px;">';
 
-  // Feed header
   html += `
     <div class="px-4 pt-4 pb-2">
       <h2 class="font-display font-bold text-xl">Clip Feed</h2>
@@ -426,13 +440,12 @@ function renderFeed(container) {
   html += '</div>';
   container.innerHTML = html;
 
-  // Attach event listeners
   attachFeedListeners(container);
 }
 
 function renderClipCard(clip) {
   const isGuessed = state.user && state.user.guessedClips[clip.id];
-  const isOwnClip = clip.type !== 'demo' && clip.uploadedBy === state.user?.name;
+  const isOwnClip = clip.type !== 'demo' && clip.uploadedBy === state.userId;
   const level = LEVEL_MAP[clip.level];
 
   let videoArea = '';
@@ -443,14 +456,15 @@ function renderClipCard(clip) {
         <div class="demo-label">${escapeHtml(clip.description)}</div>
       </div>
     `;
-  } else if (state.objectURLs[clip.id]) {
+  } else if (clip.videoUrl) {
     videoArea = `
       <video
-        src="${state.objectURLs[clip.id]}"
+        src="${clip.videoUrl}"
         preload="metadata"
         loop
         playsinline
         muted
+        crossorigin="anonymous"
         data-clip-id="${clip.id}"
       ></video>
       <div class="play-overlay" data-clip-id="${clip.id}">
@@ -459,25 +473,30 @@ function renderClipCard(clip) {
         </div>
       </div>
     `;
+  } else {
+    // Clip without video — show placeholder
+    const hue = Math.abs(clip.id.split('').reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0)) % 360;
+    videoArea = `
+      <div class="demo-placeholder" style="background:linear-gradient(135deg, hsl(${hue},40%,15%), #0a0a0a)">
+        <div class="demo-emoji">🎬</div>
+        <div class="demo-label">${escapeHtml(clip.description || 'Video clip')}</div>
+      </div>
+    `;
   }
 
-  // Player info bar
   const userInitial = clip.username ? clip.username[0].toUpperCase() : '?';
   const color = avatarColor(clip.username || 'anon');
 
   let bottomSection = '';
 
   if (isOwnClip) {
-    // Show stats for own clips
     const dist = getGuessDistribution(clip);
     const total = clip.guessLog ? clip.guessLog.length : 0;
     bottomSection = renderOwnClipStats(clip, dist, total);
   } else if (isGuessed) {
-    // Show reveal
     const guessedLevel = state.user.guessedClips[clip.id];
     bottomSection = renderRevealSection(clip, guessedLevel);
   } else {
-    // Show guess UI
     bottomSection = renderGuessUI(clip);
   }
 
@@ -633,13 +652,11 @@ function attachFeedListeners(container) {
       const clipId = pill.dataset.clipId;
       const level = pill.dataset.level;
 
-      // Deselect siblings
       container.querySelectorAll(`.guess-pill[data-clip-id="${clipId}"]`).forEach(p => {
         p.classList.remove('selected');
       });
       pill.classList.add('selected');
 
-      // Enable lock-in button
       const lockBtn = container.querySelector(`.lock-in-btn[data-clip-id="${clipId}"]`);
       if (lockBtn) {
         lockBtn.disabled = false;
@@ -695,7 +712,6 @@ function attachFeedListeners(container) {
       if (!video) return;
 
       if (video.paused) {
-        // Pause all other videos first
         container.querySelectorAll('video').forEach(v => {
           if (v !== video) v.pause();
         });
@@ -843,13 +859,11 @@ function attachUploadListeners(container) {
     }
   }
 
-  // Dropzone click
   dropzone.addEventListener('click', (e) => {
     if (e.target.closest('#clear-video')) return;
     fileInput.click();
   });
 
-  // Drag events
   dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
   dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('drag-over'); });
   dropzone.addEventListener('drop', (e) => {
@@ -861,7 +875,6 @@ function attachUploadListeners(container) {
     }
   });
 
-  // File input change
   fileInput.addEventListener('change', () => {
     if (fileInput.files[0]) {
       handleFileSelect(fileInput.files[0]);
@@ -869,7 +882,6 @@ function attachUploadListeners(container) {
   });
 
   function handleFileSelect(file) {
-    // Check size (50MB)
     if (file.size > 50 * 1024 * 1024) {
       alert('Video must be under 50MB');
       return;
@@ -884,7 +896,6 @@ function attachUploadListeners(container) {
     updateSubmitState();
   }
 
-  // Clear video
   clearBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     selectedFile = null;
@@ -899,7 +910,6 @@ function attachUploadListeners(container) {
     updateSubmitState();
   });
 
-  // Level selection
   container.querySelectorAll('.level-option').forEach(opt => {
     opt.addEventListener('click', () => {
       container.querySelectorAll('.level-option').forEach(o => {
@@ -913,10 +923,8 @@ function attachUploadListeners(container) {
     });
   });
 
-  // Name input
   container.querySelector('#upload-name').addEventListener('input', updateSubmitState);
 
-  // Submit
   submitBtn.addEventListener('click', async () => {
     if (!selectedFile || !selectedLevel) return;
 
@@ -926,69 +934,144 @@ function attachUploadListeners(container) {
     if (!name) return;
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading...';
+    submitBtn.textContent = 'Uploading... 0%';
 
-    // Read file as blob
-    const blob = new Blob([await selectedFile.arrayBuffer()], { type: selectedFile.type });
+    try {
+      const clipId = 'clip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      const blob = new Blob([await selectedFile.arrayBuffer()], { type: selectedFile.type });
 
-    const clip = {
-      id: 'clip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-      type: 'user',
-      username: name,
-      uploadedBy: state.user.name,
-      level: selectedLevel,
-      description: desc,
-      videoBlob: blob,
-      timestamp: Date.now(),
-      guessLog: [],
-    };
+      // Upload video to Firebase Storage with progress
+      let videoUrl = null;
+      try {
+        const storageRef = storage.ref(`clips/${clipId}/video`);
+        const uploadTask = storageRef.put(blob);
 
-    await saveClip(clip);
+        await new Promise((resolve, reject) => {
+          uploadTask.on('state_changed',
+            (snapshot) => {
+              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+              submitBtn.textContent = `Uploading... ${progress}%`;
+            },
+            reject,
+            resolve
+          );
+        });
 
-    // Update user name if changed
-    if (name !== state.user.name) {
-      state.user.name = name;
-      saveUser();
+        videoUrl = await uploadTask.snapshot.ref.getDownloadURL();
+      } catch (storageErr) {
+        console.error('Video upload to Storage failed:', storageErr);
+        // Continue without video — clip still gets saved with metadata
+      }
+
+      const clip = {
+        id: clipId,
+        type: 'user',
+        username: name,
+        uploadedBy: state.userId,
+        level: selectedLevel,
+        description: desc,
+        timestamp: Date.now(),
+        guessLog: [],
+      };
+
+      if (videoUrl) {
+        clip.videoUrl = videoUrl;
+      }
+
+      submitBtn.textContent = 'Saving...';
+      await db.collection('clips').doc(clipId).set(clip);
+      await loadClips();
+
+      // Update user name if changed
+      if (name !== state.user.name) {
+        state.user.name = name;
+        saveUser();
+      }
+
+      // Show success
+      container.querySelector('.view-enter').querySelectorAll(':scope > :not(#upload-success)').forEach(el => {
+        el.classList.add('hidden');
+      });
+      successEl.classList.remove('hidden');
+
+      spawnConfetti(window.innerWidth / 2, window.innerHeight / 2);
+    } catch (e) {
+      console.error('Upload failed:', e);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Upload failed. Try again.';
     }
-
-    // Show success
-    container.querySelector('.view-enter').querySelectorAll(':scope > :not(#upload-success)').forEach(el => {
-      el.classList.add('hidden');
-    });
-    successEl.classList.remove('hidden');
-
-    spawnConfetti(window.innerWidth / 2, window.innerHeight / 2);
   });
 }
 
 // ---- Leaderboard View ----
 function renderLeaderboard(container) {
-  // Generate fake leaderboard + current user
-  const fakeUsers = [
-    { name: 'silkytouch_10', guesses: 312, correct: 189, xp: 2340 },
-    { name: 'scoutmaster', guesses: 287, correct: 168, xp: 2010 },
-    { name: 'tekdribbler', guesses: 245, correct: 137, xp: 1780 },
-    { name: 'futbol_iq', guesses: 198, correct: 109, xp: 1420 },
-    { name: 'd1_bound', guesses: 176, correct: 92, xp: 1180 },
-    { name: 'crossbar_king', guesses: 154, correct: 77, xp: 980 },
-    { name: 'pitch_vision', guesses: 132, correct: 64, xp: 820 },
-    { name: 'nutmeg_nation', guesses: 98, correct: 45, xp: 590 },
-  ];
+  // Show loading state immediately
+  container.innerHTML = `
+    <div class="view-enter">
+      <div class="px-4 pt-4 pb-2">
+        <h2 class="font-display font-bold text-xl mb-1">Leaderboard</h2>
+        <p class="text-gray-500 text-sm">Top scouts ranked by XP</p>
+      </div>
+      <div class="text-center py-8">
+        <p class="text-gray-500 text-sm">Loading...</p>
+      </div>
+    </div>
+  `;
 
-  // Insert current user at appropriate position
-  let allUsers = [...fakeUsers];
-  if (state.user && state.user.totalGuesses > 0) {
-    allUsers.push({
-      name: state.user.name,
-      guesses: state.user.totalGuesses,
-      correct: state.user.correctGuesses,
-      xp: state.user.xp,
-      isCurrentUser: true,
+  // Fetch leaderboard from Firestore async
+  _loadAndRenderLeaderboard(container);
+}
+
+async function _loadAndRenderLeaderboard(container) {
+  let allUsers = [];
+
+  try {
+    const snapshot = await db.collection('users')
+      .orderBy('xp', 'desc')
+      .limit(50)
+      .get();
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.totalGuesses > 0) {
+        allUsers.push({
+          name: data.name,
+          guesses: data.totalGuesses || 0,
+          correct: data.correctGuesses || 0,
+          xp: data.xp || 0,
+          isCurrentUser: doc.id === state.userId,
+        });
+      }
     });
+  } catch (e) {
+    console.error('Failed to load leaderboard:', e);
   }
 
-  // Sort by XP
-  allUsers.sort((a, b) => b.xp - a.xp);
+  // If no real users in Firestore yet, use seed data so board isn't empty
+  if (allUsers.length === 0) {
+    allUsers = [
+      { name: 'silkytouch_10', guesses: 312, correct: 189, xp: 2340 },
+      { name: 'scoutmaster', guesses: 287, correct: 168, xp: 2010 },
+      { name: 'tekdribbler', guesses: 245, correct: 137, xp: 1780 },
+      { name: 'futbol_iq', guesses: 198, correct: 109, xp: 1420 },
+      { name: 'd1_bound', guesses: 176, correct: 92, xp: 1180 },
+      { name: 'crossbar_king', guesses: 154, correct: 77, xp: 980 },
+      { name: 'pitch_vision', guesses: 132, correct: 64, xp: 820 },
+      { name: 'nutmeg_nation', guesses: 98, correct: 45, xp: 590 },
+    ];
+
+    if (state.user && state.user.totalGuesses > 0) {
+      allUsers.push({
+        name: state.user.name,
+        guesses: state.user.totalGuesses,
+        correct: state.user.correctGuesses,
+        xp: state.user.xp,
+        isCurrentUser: true,
+      });
+    }
+
+    allUsers.sort((a, b) => b.xp - a.xp);
+  }
 
   const rankColors = ['#facc15', '#d1d5db', '#cd7f32'];
 
@@ -1019,6 +1102,9 @@ function renderLeaderboard(container) {
       </div>
     `;
   }).join('');
+
+  // Only update if we're still on the leaderboard view
+  if (state.currentView !== 'leaderboard') return;
 
   container.innerHTML = `
     <div class="view-enter">
@@ -1052,10 +1138,9 @@ function renderProfile(container) {
   const accuracy = u.totalGuesses > 0 ? Math.round((u.correctGuesses / u.totalGuesses) * 100) : 0;
   const color = avatarColor(u.name);
   const initial = u.name[0].toUpperCase();
-  const myClips = state.clips.filter(c => c.type !== 'demo' && c.uploadedBy === u.name);
+  const myClips = state.clips.filter(c => c.type !== 'demo' && c.uploadedBy === state.userId);
   const totalClipGuesses = myClips.reduce((sum, c) => sum + (c.guessLog ? c.guessLog.length : 0), 0);
 
-  // Scout rating
   let scoutTitle = 'Rookie Scout';
   if (u.xp >= 2000) scoutTitle = 'Elite Scout';
   else if (u.xp >= 1000) scoutTitle = 'Expert Scout';
@@ -1138,18 +1223,19 @@ function renderProfile(container) {
 
   // Reset handler
   container.querySelector('#reset-btn')?.addEventListener('click', async () => {
-    if (confirm('Reset all data? This will delete your stats and all uploaded clips. This cannot be undone.')) {
-      localStorage.removeItem('footy_user');
-      // Clear IndexedDB
-      const clips = await dbGetAll();
-      for (const clip of clips) {
-        await dbDelete(clip.id);
+    if (confirm('Reset all data? This will delete your stats. Your uploaded clips will remain. This cannot be undone.')) {
+      // Delete user document from Firestore
+      try {
+        await db.collection('users').doc(state.userId).delete();
+      } catch (e) {
+        console.error('Failed to delete user from Firestore:', e);
       }
-      Object.values(state.objectURLs).forEach(url => URL.revokeObjectURL(url));
-      state.objectURLs = {};
-      state.userClips = [];
-      state.clips = [...DEMO_CLIPS];
+
+      localStorage.removeItem('footy_userId');
+      localStorage.removeItem('footy_user');
       state.user = null;
+      state.userId = null;
+      state.clips = [...DEMO_CLIPS];
 
       // Show onboarding
       $('#onboarding-modal').classList.remove('hidden');
@@ -1175,11 +1261,15 @@ function initOnboarding() {
 
   submitBtn.addEventListener('click', completeOnboarding);
 
-  function completeOnboarding() {
+  async function completeOnboarding() {
     const name = nameInput.value.trim();
     if (!name) return;
-    createUser(name);
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Setting up...';
+    await createUser(name);
     modal.classList.add('hidden');
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Let's Go";
     updateHeaderStats();
     renderView();
   }
@@ -1199,7 +1289,7 @@ async function init() {
   initOnboarding();
   initTabBar();
 
-  const hasUser = loadUser();
+  const hasUser = await loadUser();
   if (!hasUser) {
     $('#onboarding-modal').classList.remove('hidden');
   } else {
