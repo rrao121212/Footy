@@ -120,7 +120,6 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 // ---- User ID (persistent local identifier) ----
 function getOrCreateUserId() {
@@ -214,25 +213,11 @@ async function loadClips() {
 }
 
 async function saveClip(clipData) {
-  // Upload video to Firebase Storage if present
-  if (clipData.videoBlob) {
-    const storageRef = storage.ref(`clips/${clipData.id}/video`);
-    const uploadSnapshot = await storageRef.put(clipData.videoBlob);
-    clipData.videoUrl = await uploadSnapshot.ref.getDownloadURL();
-    delete clipData.videoBlob;
-  }
-
   await db.collection('clips').doc(clipData.id).set(clipData);
   await loadClips();
 }
 
 async function deleteClip(clipId) {
-  try {
-    await storage.ref(`clips/${clipId}/video`).delete();
-  } catch (e) {
-    // Video may not exist in Storage — that's fine
-  }
-
   await db.collection('clips').doc(clipId).delete();
 
   if (state.user && state.user.guessedClips[clipId]) {
@@ -934,43 +919,10 @@ function attachUploadListeners(container) {
     if (!name) return;
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Uploading... 0%';
+    submitBtn.textContent = 'Saving...';
 
     try {
       const clipId = 'clip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-      const blob = new Blob([await selectedFile.arrayBuffer()], { type: selectedFile.type });
-
-      // Upload video to Firebase Storage with progress + timeout
-      let videoUrl = null;
-      try {
-        const storageRef = storage.ref(`clips/${clipId}/video`);
-        const uploadTask = storageRef.put(blob);
-
-        const storageUpload = new Promise((resolve, reject) => {
-          uploadTask.on('state_changed',
-            (snapshot) => {
-              const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-              submitBtn.textContent = `Uploading... ${progress}%`;
-            },
-            (err) => reject(err),
-            () => resolve()
-          );
-        });
-
-        const timeout = new Promise((_, reject) =>
-          setTimeout(() => {
-            uploadTask.cancel();
-            reject(new Error('Upload timed out'));
-          }, 60000)
-        );
-
-        await Promise.race([storageUpload, timeout]);
-        videoUrl = await uploadTask.snapshot.ref.getDownloadURL();
-      } catch (storageErr) {
-        console.warn('Video upload skipped:', storageErr.message || storageErr);
-      }
-
-      submitBtn.textContent = 'Saving...';
 
       const clip = {
         id: clipId,
@@ -982,10 +934,6 @@ function attachUploadListeners(container) {
         timestamp: Date.now(),
         guessLog: [],
       };
-
-      if (videoUrl) {
-        clip.videoUrl = videoUrl;
-      }
 
       await db.collection('clips').doc(clipId).set(clip);
       await loadClips();
