@@ -120,6 +120,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 // ---- User ID (persistent local identifier) ----
 function getOrCreateUserId() {
@@ -218,6 +219,7 @@ async function saveClip(clipData) {
 }
 
 async function deleteClip(clipId) {
+  try { await storage.ref(`clips/${clipId}/video`).delete(); } catch (e) { /* no video */ }
   await db.collection('clips').doc(clipId).delete();
 
   if (state.user && state.user.guessedClips[clipId]) {
@@ -919,10 +921,30 @@ function attachUploadListeners(container) {
     if (!name) return;
 
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving...';
+    submitBtn.textContent = 'Uploading... 0%';
 
     try {
       const clipId = 'clip-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+      const blob = new Blob([await selectedFile.arrayBuffer()], { type: selectedFile.type });
+
+      // Upload video to Firebase Storage with progress
+      const storageRef = storage.ref(`clips/${clipId}/video`);
+      const uploadTask = storageRef.put(blob);
+
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed',
+          (snapshot) => {
+            const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+            submitBtn.textContent = `Uploading... ${progress}%`;
+          },
+          (err) => reject(err),
+          () => resolve()
+        );
+      });
+
+      const videoUrl = await uploadTask.snapshot.ref.getDownloadURL();
+
+      submitBtn.textContent = 'Saving...';
 
       const clip = {
         id: clipId,
@@ -931,6 +953,7 @@ function attachUploadListeners(container) {
         uploadedBy: state.userId,
         level: selectedLevel,
         description: desc,
+        videoUrl: videoUrl,
         timestamp: Date.now(),
         guessLog: [],
       };
